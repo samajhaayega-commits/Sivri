@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SIVRI - Royal Edition</title>
+    <style>
+        :root {
+            --bg-dark: #0d0d0d;
+            --bg-accent: #1a0f00;
+            --gold: #d4af37;
+            --p1: #ff3131; --p2: #3182ff; --p3: #2ecc71; --p4: #f1c40f;
+            --cell-bg: #fdf5e6;
+            --seed-white: #f5f5f5;
+            --seed-brown: #4b3621;
+        }
+
+        body {
+            margin: 0; padding: 0; 
+            background: radial-gradient(circle, var(--bg-accent), var(--bg-dark));
+            color: #fff; font-family: 'Segoe UI', serif;
+            display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+        }
+
+        .header { text-align: center; margin: 15px 0; }
+        .title { font-size: 45px; font-weight: 900; letter-spacing: 10px; background: linear-gradient(#fff, var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(212,175,55,0.4)); margin: 0; }
+        
+        #status-bar { 
+            background: rgba(255,255,255,0.05); padding: 5px 25px; border-radius: 50px; 
+            border: 1px solid var(--gold); font-size: 18px; margin-top: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
+
+        /* --- THE ROYAL BOARD --- */
+        #board-wrapper {
+            padding: 12px; background: #3d2b1f; border-radius: 10px;
+            box-shadow: 0 20px 50px #000, inset 0 0 20px #000; border: 3px solid var(--gold);
+        }
+
+        #board {
+            display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr);
+            width: min(92vw, 420px); height: min(92vw, 420px); background: var(--cell-bg); gap: 2px;
+        }
+
+        .cell { background: var(--cell-bg); position: relative; border: 1px solid rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center; }
+        
+        /* Lightning X Design */
+        .home-cell {
+            background-image: linear-gradient(45deg, transparent 48%, currentColor 48%, currentColor 52%, transparent 52%),
+                              linear-gradient(-45deg, transparent 48%, currentColor 48%, currentColor 52%, transparent 52%);
+            box-shadow: inset 0 0 15px currentColor;
+        }
+        .cell[data-p="1"] { color: var(--p1); }
+        .cell[data-p="2"] { color: var(--p2); }
+        .cell[data-p="3"] { color: var(--p3); }
+        .cell[data-p="4"] { color: var(--p4); }
+
+        .win-box { background: radial-gradient(circle, #2c1a0a, #000); border: 2px solid var(--gold); color: var(--gold); font-weight: bold; z-index: 5; }
+
+        /* --- GLASS TOSS AREA --- */
+        .toss-container { margin-top: 20px; width: 300px; position: relative; text-align: center; }
+        
+        .hand-box { width: 70px; height: 70px; margin: 0 auto; cursor: pointer; z-index: 20; position: relative; transition: transform 0.1s; }
+        .hand-emoji { font-size: 55px; filter: drop-shadow(0 5px 10px #000); }
+        .shaking { animation: shake 0.3s infinite; }
+
+        @keyframes shake {
+            0% { transform: translate(2px, 2px) rotate(0deg); }
+            50% { transform: translate(-2px, -2px) rotate(10deg); }
+            100% { transform: translate(2px, -2px) rotate(-10deg); }
+        }
+
+        .glass-box {
+            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 15px; padding: 15px; margin-top: -10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); min-height: 120px; display: flex; flex-direction: column; align-items: center;
+        }
+
+        .seeds-row { display: flex; gap: 12px; margin-bottom: 10px; }
+        .seed { width: 30px; height: 40px; border-radius: 40% 40% 50% 50%; position: relative; transform-style: preserve-3d; opacity: 0; }
+        .thrown { animation: land 0.5s ease-out forwards; opacity: 1; }
+        
+        @keyframes land {
+            0% { transform: translateY(-40px) scale(0.5); }
+            100% { transform: translateY(0) scale(1) rotateX(var(--rx)); }
+        }
+
+        .seed-side { position: absolute; width: 100%; height: 100%; border-radius: inherit; backface-visibility: hidden; }
+        .seed-offwhite { background: var(--seed-white); border: 3px solid var(--seed-brown); }
+        .seed-coffee { background: var(--seed-brown); transform: rotateX(180deg); }
+
+        /* --- BUTTONS (TOKENS) --- */
+        .token {
+            width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff;
+            position: absolute; cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 6px #000; z-index: 10;
+        }
+        .active { animation: glow 0.8s infinite alternate; scale: 1.2; z-index: 15; }
+        @keyframes glow { from { box-shadow: 0 0 5px #fff; } to { box-shadow: 0 0 20px #fff; } }
+
+        #move-info { font-size: 28px; font-weight: bold; color: var(--gold); text-shadow: 0 0 10px #000; }
+
+        /* --- TROPHY OVERLAY --- */
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+        .winner-panel { background: #2c1a0a; border: 3px solid var(--gold); padding: 30px; border-radius: 20px; text-align: center; }
+        .trophy-anim { font-size: 80px; animation: bounce 1s infinite; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1 class="title">SIVRI</h1>
+    <div id="status-bar">PLAYER 1 TURN</div>
+</div>
+
+<div id="board-wrapper">
+    <div id="board"></div>
+</div>
+
+<div class="toss-container">
+    <div class="hand-box" id="toss-btn" onclick="toss()">
+        <div class="hand-emoji">✊</div>
+    </div>
+    <div class="glass-box">
+        <div class="seeds-row">
+            <div class="seed" id="s1"><div class="seed-side seed-offwhite"></div><div class="seed-side seed-coffee"></div></div>
+            <div class="seed" id="s2"><div class="seed-side seed-offwhite"></div><div class="seed-side seed-coffee"></div></div>
+            <div class="seed" id="s3"><div class="seed-side seed-offwhite"></div><div class="seed-side seed-coffee"></div></div>
+            <div class="seed" id="s4"><div class="seed-side seed-offwhite"></div><div class="seed-side seed-coffee"></div></div>
+        </div>
+        <div id="move-info">READY</div>
+    </div>
+</div>
+
+<div class="overlay" id="win-overlay">
+    <div class="winner-panel">
+        <div class="trophy-anim">🏆</div>
+        <h1 id="winner-name" style="color: var(--gold);">PLAYER 1 WINS!</h1>
+        <p>SIVRI Champion Found!</p>
+        <button onclick="location.reload()" style="background:var(--gold); border:none; padding:10px 30px; font-weight:bold; cursor:pointer; border-radius:5px;">RESTART</button>
+    </div>
+</div>
+
+<script>
+    const paths = {
+        1: [23, 24, 19, 14, 9, 4, 3, 2, 1, 0, 5, 10, 15, 20, 21, 16, 11, 6, 7, 8, 13, 18, 17, 12],
+        2: [9, 4, 3, 2, 1, 0, 5, 10, 15, 20, 21, 22, 23, 24, 19, 18, 17, 16, 11, 6, 7, 8, 13, 12],
+        3: [1, 0, 5, 10, 15, 20, 21, 22, 23, 24, 19, 14, 9, 4, 3, 8, 13, 18, 17, 16, 11, 6, 7, 12],
+        4: [15, 20, 21, 22, 23, 24, 19, 14, 9, 4, 3, 2, 1, 0, 5, 6, 7, 8, 13, 18, 17, 16, 11, 12]
+    };
+
+    const config = {
+        1: { color: 'var(--p1)', home: 22 },
+        2: { color: 'var(--p2)', home: 14 },
+        3: { color: 'var(--p3)', home: 2 },
+        4: { color: 'var(--p4)', home: 10 }
+    };
+
+    let turn = 1, moveVal = 0, tokens = [], winners = [], isBusy = false;
+
+    // Audio Context for Funny sounds
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSfx(type) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        if(type === 'kill') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.4); }
+        if(type === 'win') { osc.type = 'sine'; osc.frequency.setValueAtTime(500, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.5); }
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+    }
+
+    function init() {
+        const board = document.getElementById('board');
+        const homes = { 22:1, 14:2, 2:3, 10:4 };
+        for (let i = 0; i < 25; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.id = `c${i}`;
+            if (homes[i]) { cell.classList.add('home-cell'); cell.setAttribute('data-p', homes[i]); }
+            if (i === 12) { cell.classList.add('win-box'); cell.innerText = "WIN"; }
+            board.appendChild(cell);
+        }
+        for (let p = 1; p <= 4; p++) {
+            for (let t = 0; t < 4; t++) {
+                const el = document.createElement('div');
+                el.className = 'token';
+                el.style.backgroundColor = config[p].color;
+                const obj = { p, t, pos: -1, el, finished: false };
+                el.onclick = () => moveToken(obj);
+                tokens.push(obj);
+                place(obj);
+            }
+        }
+    }
+
+    function place(obj) {
+        const cellId = obj.pos === -1 ? config[obj.p].home : paths[obj.p][obj.pos];
+        const cell = document.getElementById(`c${cellId}`);
+        const offset = obj.t * 3;
+        obj.el.style.left = (cell.clientWidth/2 - 13 + offset) + 'px';
+        obj.el.style.top = (cell.clientHeight/2 - 13 + offset) + 'px';
+        cell.appendChild(obj.el);
+    }
+
+    async function toss() {
+        if (isBusy) return;
+        isBusy = true;
+        
+        // Winner Check: If all 4 are at pos 23 (Win Box entrance)
+        const myTokens = tokens.filter(tk => tk.p === turn && !tk.finished);
+        const allInWaiting = myTokens.every(tk => tk.pos === 23);
+
+        const hand = document.getElementById('toss-btn');
+        const seeds = document.querySelectorAll('.seed');
+        hand.classList.add('shaking');
+        hand.querySelector('.hand-emoji').innerText = "👐";
+        
+        await new Promise(r => setTimeout(r, 800));
+        hand.classList.remove('shaking');
+        hand.querySelector('.hand-emoji').innerText = "🖐️";
+
+        let whites = 0;
+        seeds.forEach(s => {
+            const isWhite = Math.random() > 0.5;
+            if (isWhite) whites++;
+            const rx = isWhite ? (Math.random()*20-10) : (180 + Math.random()*20-10);
+            s.style.setProperty('--rx', `${rx}deg`);
+            s.classList.remove('thrown');
+            void s.offsetWidth;
+            s.classList.add('thrown');
+        });
+
+        moveVal = (whites === 0) ? 8 : whites;
+        document.getElementById('move-info').innerText = moveVal;
+
+        // Final Logic: Need 4 or 8 to win
+        if (allInWaiting) {
+            if (moveVal === 4 || moveVal === 8) {
+                myTokens.forEach(tk => { tk.finished = true; tk.el.style.display = 'none'; });
+                playSfx('win');
+                winners.push(turn);
+                showWinner(turn);
+                return;
+            } else {
+                setTimeout(nextTurn, 1000);
+                return;
+            }
+        }
+
+        let canMove = false;
+        tokens.forEach(tk => {
+            if (tk.p === turn && !tk.finished && (tk.pos + moveVal) < paths[turn].length) {
+                tk.el.classList.add('active'); canMove = true;
+            }
+        });
+        if (!canMove) setTimeout(nextTurn, 1200);
+    }
+
+    async function moveToken(t) {
+        if (!t.el.classList.contains('active')) return;
+        tokens.forEach(tk => tk.el.classList.remove('active'));
+
+        for (let i = 0; i < moveVal; i++) {
+            t.pos++; place(t);
+            await new Promise(r => setTimeout(r, 200));
+        }
+
+        const currentCell = paths[t.p][t.pos];
+        
+        // Handle Kill
+        if (![22, 14, 2, 10].includes(currentCell) && currentCell !== 12) {
+            let killed = false;
+            tokens.forEach(other => {
+                if (other.p !== t.p && !other.finished && other.pos !== -1 && paths[other.p][other.pos] === currentCell) {
+                    other.pos = -1; place(other); killed = true;
+                }
+            });
+            if (killed) { playSfx('kill'); resetBari("MARA! EXTRA TURN!"); return; }
+        }
+
+        if (currentCell === 12 || moveVal === 4 || moveVal === 8) {
+            resetBari("EXTRA TURN!");
+        } else {
+            nextTurn();
+        }
+    }
+
+    function resetBari(msg) {
+        isBusy = false;
+        document.getElementById('move-info').innerText = msg;
+        document.getElementById('toss-btn').querySelector('.hand-emoji').innerText = "✊";
+    }
+
+    function nextTurn() {
+        do { turn = (turn % 4) + 1; } while (winners.includes(turn));
+        document.getElementById('status-bar').innerText = `PLAYER ${turn} TURN`;
+        document.getElementById('status-bar').style.color = config[turn].color;
+        isBusy = false;
+        document.getElementById('move-info').innerText = "READY";
+        document.getElementById('toss-btn').querySelector('.hand-emoji').innerText = "✊";
+    }
+
+    function showWinner(p) {
+        document.getElementById('winner-name').innerText = `PLAYER ${p} IS SIVRI KING!`;
+        document.getElementById('win-overlay').style.display = 'flex';
+    }
+
+    init();
+</script>
+</body>
+</html>
